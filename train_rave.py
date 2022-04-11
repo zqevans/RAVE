@@ -14,6 +14,7 @@ import numpy as np
 import GPUtil as gpu
 
 from udls.transforms import Compose, RandomApply, Dequantize, RandomCrop
+import wandb
 
 if __name__ == "__main__":
 
@@ -50,6 +51,7 @@ if __name__ == "__main__":
         N_SIGNAL = 65536
         MAX_STEPS = 2000000
 
+        N_GPUS = 1
         BATCH = 8
 
         NAME = None
@@ -91,10 +93,10 @@ if __name__ == "__main__":
         split_set="full",
         transforms=Compose([
             RandomCrop(args.N_SIGNAL),
-            RandomApply(
-                lambda x: random_phase_mangle(x, 20, 2000, .99, args.SR),
-                p=.8,
-            ),
+            # RandomApply(
+            #     lambda x: random_phase_mangle(x, 20, 2000, .99, args.SR),
+            #     p=.8,
+            # ),
             Dequantize(16),
             lambda x: x.astype(np.float32),
         ]),
@@ -118,22 +120,6 @@ if __name__ == "__main__":
     )
     last_checkpoint = pl.callbacks.ModelCheckpoint(filename="last")
 
-    CUDA = gpu.getAvailable(maxMemory=.05)
-    VISIBLE_DEVICES = environ.get("CUDA_VISIBLE_DEVICES", "")
-
-    if VISIBLE_DEVICES:
-        use_gpu = int(int(VISIBLE_DEVICES) >= 0)
-    elif len(CUDA):
-        environ["CUDA_VISIBLE_DEVICES"] = str(CUDA[0])
-        use_gpu = 1
-    elif torch.cuda.is_available():
-        print("Cuda is available but no fully free GPU found.")
-        print("Training may be slower due to concurrent processes.")
-        use_gpu = 1
-    else:
-        print("No GPU found.")
-        use_gpu = 0
-
     val_check = {}
     if len(train) >= 10000:
         val_check["val_check_interval"] = 10000
@@ -141,10 +127,12 @@ if __name__ == "__main__":
         nepoch = 10000 // len(train)
         val_check["check_val_every_n_epoch"] = nepoch
 
+    wandb_logger = pl.loggers.WandbLogger(project=args.NAME)
+    wandb_logger.watch(model)
+
     trainer = pl.Trainer(
-        logger=pl.loggers.TensorBoardLogger(path.join("runs", args.NAME),
-                                            name="rave"),
-        gpus=use_gpu,
+        logger=wandb_logger,
+        gpus=args.N_GPUS,
         callbacks=[validation_checkpoint, last_checkpoint],
         resume_from_checkpoint=search_for_run(args.CKPT),
         max_epochs=100000,

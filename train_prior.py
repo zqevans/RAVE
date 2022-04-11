@@ -14,6 +14,7 @@ import numpy as np
 import math
 
 import GPUtil as gpu
+import wandb
 
 
 class args(Config):
@@ -33,6 +34,8 @@ class args(Config):
     BATCH = 8
     CKPT = None
     MAX_STEPS = 10000000
+
+    N_GPUS = 1
 
     NAME = None
 
@@ -86,21 +89,8 @@ validation_checkpoint = pl.callbacks.ModelCheckpoint(
 )
 last_checkpoint = pl.callbacks.ModelCheckpoint(filename="last")
 
-CUDA = gpu.getAvailable(maxMemory=.05)
-VISIBLE_DEVICES = environ.get("CUDA_VISIBLE_DEVICES", "")
-
-if VISIBLE_DEVICES:
-    use_gpu = int(int(VISIBLE_DEVICES) >= 0)
-elif len(CUDA):
-    environ["CUDA_VISIBLE_DEVICES"] = str(CUDA[0])
-    use_gpu = 1
-elif torch.cuda.is_available():
-    print("Cuda is available but no fully free GPU found.")
-    print("Training may be slower due to concurrent processes.")
-    use_gpu = 1
-else:
-    print("No GPU found.")
-    use_gpu = 0
+wandb_logger = pl.loggers.WandbLogger(project=args.NAME)
+wandb_logger.watch(model)
 
 val_check = {}
 if len(train) >= 10000:
@@ -110,9 +100,8 @@ else:
     val_check["check_val_every_n_epoch"] = nepoch
 
 trainer = pl.Trainer(
-    logger=pl.loggers.TensorBoardLogger(path.join("runs", args.NAME),
-                                        name="prior"),
-    gpus=use_gpu,
+    logger=wandb_logger,
+    gpus=args.N_GPUS,
     callbacks=[validation_checkpoint, last_checkpoint],
     resume_from_checkpoint=search_for_run(args.CKPT),
     max_epochs=100000,
