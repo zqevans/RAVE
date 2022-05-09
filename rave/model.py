@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.utils.weight_norm as wn
 import numpy as np
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.distributed import rank_zero_only
 from .core import multiscale_stft, Loudness, mod_sigmoid
 from .core import amp_to_impulse_response, fft_convolve, get_beta_kl_cyclic_annealed
 from .pqmf import CachedPQMF as PQMF
@@ -15,6 +16,7 @@ import cached_conv as cc
 
 
 class Profiler:
+
     def __init__(self):
         self.ticks = [[time(), None]]
 
@@ -32,6 +34,7 @@ class Profiler:
 
 
 class Residual(nn.Module):
+
     def __init__(self, module, cumulative_delay=0):
         super().__init__()
         additional_delay = module.cumulative_delay
@@ -48,6 +51,7 @@ class Residual(nn.Module):
 
 
 class ResidualStack(nn.Module):
+
     def __init__(self,
                  dim,
                  kernel_size,
@@ -102,6 +106,7 @@ class ResidualStack(nn.Module):
 
 
 class UpsampleLayer(nn.Module):
+
     def __init__(self,
                  in_dim,
                  out_dim,
@@ -141,6 +146,7 @@ class UpsampleLayer(nn.Module):
 
 
 class NoiseGenerator(nn.Module):
+
     def __init__(self, in_size, data_size, ratios, noise_bands, padding_mode):
         super().__init__()
         net = []
@@ -184,6 +190,7 @@ class NoiseGenerator(nn.Module):
 
 
 class Generator(nn.Module):
+
     def __init__(self,
                  latent_size,
                  capacity,
@@ -292,6 +299,7 @@ class Generator(nn.Module):
 
 
 class Encoder(nn.Module):
+
     def __init__(self,
                  data_size,
                  capacity,
@@ -346,6 +354,7 @@ class Encoder(nn.Module):
 
 
 class Discriminator(nn.Module):
+
     def __init__(self, in_size, capacity, multiplier, n_layers):
         super().__init__()
 
@@ -390,6 +399,7 @@ class Discriminator(nn.Module):
 
 
 class StackDiscriminators(nn.Module):
+
     def __init__(self, n_dis, *args, **kwargs):
         super().__init__()
         self.discriminators = nn.ModuleList(
@@ -404,6 +414,7 @@ class StackDiscriminators(nn.Module):
 
 
 class RAVE(pl.LightningModule):
+
     def __init__(self,
                  data_size,
                  capacity,
@@ -704,6 +715,7 @@ class RAVE(pl.LightningModule):
 
         return torch.cat([x, y], -1), mean
 
+    @rank_zero_only
     def validation_epoch_end(self, out):
         step = len(self.train_dataloader()) * self.current_epoch
         audio, z = list(zip(*out))
