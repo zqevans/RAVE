@@ -133,7 +133,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         logger=wandb_logger,
         gpus=args.N_GPUS,
-        strategy='ddp',
+        #strategy='ddp',
         callbacks=[validation_checkpoint, last_checkpoint],
         resume_from_checkpoint=search_for_run(args.CKPT),
         max_epochs=100000,
