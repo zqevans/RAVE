@@ -491,13 +491,14 @@ class RAVE(pl.LightningModule):
         self.warmed_up = False
         self.sr = sr
         self.mode = mode
-        self.step = 0
 
         self.min_kl = min_kl
         self.max_kl = max_kl
         self.cropped_latent_size = cropped_latent_size
 
         self.feature_match = feature_match
+
+        self.register_buffer("saved_step", torch.tensor(0))
 
     def configure_optimizers(self):
         gen_p = list(self.encoder.parameters())
@@ -564,8 +565,7 @@ class RAVE(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         p = Profiler()
-        step = len(self.train_dataloader()) * self.current_epoch + batch_idx
-        self.step = step
+        self.saved_step += 1
 
         gen_opt, dis_opt = self.optimizers()
         x = batch.unsqueeze(1)
@@ -605,7 +605,7 @@ class RAVE(pl.LightningModule):
         distance = distance + loud_dist
         p.tick("loudness distance")
 
-        feature_matching_distance = 0
+        feature_matching_distance = 0.
         if self.warmed_up:  # DISCRIMINATION
             feature_true = self.discriminator(x)
             feature_fake = self.discriminator(y)
@@ -644,7 +644,7 @@ class RAVE(pl.LightningModule):
 
         # COMPOSE GEN LOSS
         beta = get_beta_kl_cyclic_annealed(
-            step=step,
+            step=self.global_step,
             cycle_size=5e4,
             warmup=self.warmup // 2,
             min_beta=self.min_kl,
@@ -656,7 +656,7 @@ class RAVE(pl.LightningModule):
         p.tick("gen loss compose")
 
         # OPTIMIZATION
-        if step % 2 and self.warmed_up:
+        if self.global_step % 2 and self.warmed_up:
             dis_opt.zero_grad()
             loss_dis.backward()
             dis_opt.step()
@@ -717,10 +717,9 @@ class RAVE(pl.LightningModule):
 
     @rank_zero_only
     def validation_epoch_end(self, out):
-        step = len(self.train_dataloader()) * self.current_epoch
         audio, z = list(zip(*out))
 
-        if step > self.warmup:
+        if self.saved_step > self.warmup:
             self.warmed_up = True
 
         # LATENT SPACE ANALYSIS
@@ -744,8 +743,10 @@ class RAVE(pl.LightningModule):
 
             var_percent = [.8, .9, .95, .99]
             for p in var_percent:
-                self.log(f"{p}%_manifold", np.argmax(var > p))
+                self.log(f"{p}%_manifold",
+                         np.argmax(var > p).astype(np.float32))
 
         y = torch.cat(audio, 0)[:64].reshape(-1)
-        self.logger.experiment.add_audio("audio_val", y, self.idx, self.sr)
+        self.logger.experiment.add_audio("audio_val", y,
+                                         self.saved_step.item(), self.sr)
         self.idx += 1
