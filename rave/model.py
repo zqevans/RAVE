@@ -1,6 +1,8 @@
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.utils.weight_norm as wn
+import torchaudio
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.distributed import rank_zero_only
@@ -9,6 +11,7 @@ from .core import amp_to_impulse_response, fft_convolve, get_beta_kl_cyclic_anne
 from .pqmf import CachedPQMF as PQMF
 from sklearn.decomposition import PCA
 from einops import rearrange
+import wandb
 
 from time import time
 
@@ -747,6 +750,15 @@ class RAVE(pl.LightningModule):
                          np.argmax(var > p).astype(np.float32))
 
         y = torch.cat(audio, 0)[:64].reshape(-1)
-        self.logger.experiment.add_audio("audio_val", y,
-                                         self.saved_step.item(), self.sr)
+        try:
+            log_dict = {}
+            step = self.saved_step.item()
+            filename = f'demo_{step}.wav'
+            torchaudio.save(filename, y, self.sr)
+            log_dict[f'demo_{step}'] = wandb.Audio(filename,
+                                                   sample_rate=self.sr,
+                                                   caption=f'Demo {step}')
+            self.logger.experiment.log(log_dict, step=step)
+        except Exception as e:
+            print(f'{type(e).__name__}: {e}', file=sys.stderr)
         self.idx += 1
