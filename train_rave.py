@@ -53,6 +53,7 @@ if __name__ == "__main__":
 
         N_GPUS = 1
         BATCH = 8
+        ACCUM_BATCHES = 4
 
         NAME = None
 
@@ -133,6 +134,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         logger=wandb_logger,
         gpus=args.N_GPUS,
+        accumulate_grad_batches=args.ACCUM_BATCHES,
         #strategy='ddp',
         callbacks=[validation_checkpoint, last_checkpoint],
         resume_from_checkpoint=search_for_run(args.CKPT),

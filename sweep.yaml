@@ -3,11 +3,24 @@ method: random
 metric:
   goal: minimize
   name:
+command:
+  - python3
+  - ${program}
+  - ${args}
 parameters:
-  d_multiplier:
-    max: 8
-    min: 2
-    distribution: int_uniform
+  batch_size:
+    values:
+      - 8
+      - 16
+      - 32
+      - 64
+    distribution: categorical
+  accum_batches:
+    values:
+      - 4
+      - 8
+      - 16
+    distribution: categorical
   latent_size:
     values:
       - 128
