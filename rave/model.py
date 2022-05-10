@@ -697,6 +697,7 @@ class RAVE(pl.LightningModule):
             y = self.pqmf.inverse(y)
         return y
 
+    @rank_zero_only
     def validation_step(self, batch, batch_idx):
         x = batch.unsqueeze(1)
 
