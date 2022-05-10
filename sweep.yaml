@@ -1,0 +1,36 @@
+program: train_rave.py
+method: random
+metric:
+  goal: minimize
+  name:
+parameters:
+  d_multiplier:
+    max: 8
+    min: 2
+    distribution: int_uniform
+  latent_size:
+    values:
+      - 128
+      - 256
+      - 512
+      - 1024
+      - 2048
+    distribution: categorical
+  data_size:
+    values:
+      - 8
+      - 16
+      - 32
+      - 64
+    distribution: categorical
+  capacity:
+    values:
+      - 32
+      - 64
+      - 96
+      - 128
+    distribution: categorical
+  warmup:
+    max: 2000000
+    min: 100000
+    distribution: int_uniform
