@@ -750,8 +750,7 @@ class RAVE(pl.LightningModule):
                 self.log(f"{p}%_manifold",
                          np.argmax(var > p).astype(np.float32))
 
-        y = torch.cat(audio, 0)[:64].reshape(-1).detach().cpu()
-        print(y.shape)
+        y = torch.cat(audio, 0)[:64].reshape(-1).detach().cpu().unsqueeze(0)
         try:
             log_dict = {}
             step = self.saved_step.item()
