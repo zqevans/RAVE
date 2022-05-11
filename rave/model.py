@@ -751,6 +751,7 @@ class RAVE(pl.LightningModule):
                          np.argmax(var > p).astype(np.float32))
 
         y = torch.cat(audio, 0)[:64].reshape(-1).detach().cpu()
+        print(y.shape)
         try:
             log_dict = {}
             step = self.saved_step.item()
