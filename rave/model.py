@@ -766,7 +766,7 @@ class RAVE(pl.LightningModule):
         try:
             log_dict = {}
             step = self.saved_step.item()
-            filename = f'./demos/demo.wav'
+            filename = f'demo_{step}.wav'
             torchaudio.save(filename, y, self.sr)
             log_dict[f'demo'] = wandb.Audio(filename,
                                             sample_rate=self.sr,
