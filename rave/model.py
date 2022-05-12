@@ -766,11 +766,11 @@ class RAVE(pl.LightningModule):
         try:
             log_dict = {}
             step = self.saved_step.item()
-            filename = f'demo_{step}.wav'
+            filename = f'./demos/demo.wav'
             torchaudio.save(filename, y, self.sr)
-            log_dict[f'demo_{step}'] = wandb.Audio(filename,
-                                                   sample_rate=self.sr,
-                                                   caption=f'Demo {step}')
+            log_dict[f'demo'] = wandb.Audio(filename,
+                                            sample_rate=self.sr,
+                                            caption=f'Demo')
             self.logger.experiment.log(log_dict, step=step)
         except Exception as e:
             print(f'{type(e).__name__}: {e}', file=sys.stderr)
