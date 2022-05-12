@@ -23,6 +23,7 @@ if __name__ == "__main__":
         CAPACITY = 64
         LATENT_SIZE = 128
         RATIOS = [4, 4, 4, 2]
+        TAYLOR_DEGREES = 0
         BIAS = True
         NO_LATENCY = False
 
@@ -53,35 +54,33 @@ if __name__ == "__main__":
 
         N_GPUS = 1
         BATCH = 8
-        ACCUM_BATCHES = 4
 
         NAME = None
 
     args.parse_args()
 
     assert args.NAME is not None
-    model = RAVE(
-        data_size=args.DATA_SIZE,
-        capacity=args.CAPACITY,
-        latent_size=args.LATENT_SIZE,
-        ratios=args.RATIOS,
-        bias=args.BIAS,
-        loud_stride=args.LOUD_STRIDE,
-        use_noise=args.USE_NOISE,
-        noise_ratios=args.NOISE_RATIOS,
-        noise_bands=args.NOISE_BANDS,
-        d_capacity=args.D_CAPACITY,
-        d_multiplier=args.D_MULTIPLIER,
-        d_n_layers=args.D_N_LAYERS,
-        warmup=args.WARMUP,
-        mode=args.MODE,
-        no_latency=args.NO_LATENCY,
-        sr=args.SR,
-        min_kl=args.MIN_KL,
-        max_kl=args.MAX_KL,
-        cropped_latent_size=args.CROPPED_LATENT_SIZE,
-        feature_match=args.FEATURE_MATCH,
-    )
+    model = RAVE(data_size=args.DATA_SIZE,
+                 capacity=args.CAPACITY,
+                 latent_size=args.LATENT_SIZE,
+                 ratios=args.RATIOS,
+                 bias=args.BIAS,
+                 loud_stride=args.LOUD_STRIDE,
+                 use_noise=args.USE_NOISE,
+                 noise_ratios=args.NOISE_RATIOS,
+                 noise_bands=args.NOISE_BANDS,
+                 d_capacity=args.D_CAPACITY,
+                 d_multiplier=args.D_MULTIPLIER,
+                 d_n_layers=args.D_N_LAYERS,
+                 warmup=args.WARMUP,
+                 mode=args.MODE,
+                 no_latency=args.NO_LATENCY,
+                 sr=args.SR,
+                 min_kl=args.MIN_KL,
+                 max_kl=args.MAX_KL,
+                 cropped_latent_size=args.CROPPED_LATENT_SIZE,
+                 feature_match=args.FEATURE_MATCH,
+                 taylor_degrees=args.TAYLOR_DEGREES)
 
     x = torch.zeros(args.BATCH, 2**14)
     model.validation_step(x, 0)
@@ -134,7 +133,6 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         logger=wandb_logger,
         gpus=args.N_GPUS,
-        accumulate_grad_batches=args.ACCUM_BATCHES,
         #strategy='ddp',
         callbacks=[validation_checkpoint, last_checkpoint],
         resume_from_checkpoint=search_for_run(args.CKPT),

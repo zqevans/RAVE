@@ -438,7 +438,8 @@ class RAVE(pl.LightningModule):
                  max_kl=5e-1,
                  cropped_latent_size=0,
                  feature_match=True,
-                 sr=24000):
+                 sr=24000,
+                 taylor_degrees=0):
         super().__init__()
         self.save_hyperparameters()
 
@@ -500,6 +501,8 @@ class RAVE(pl.LightningModule):
         self.cropped_latent_size = cropped_latent_size
 
         self.feature_match = feature_match
+
+        self.taylor_degrees = taylor_degrees
 
         self.register_buffer("saved_step", torch.tensor(0))
 
@@ -595,6 +598,15 @@ class RAVE(pl.LightningModule):
         # DISTANCE BETWEEN INPUT AND OUTPUT
         distance = self.distance(x, y)
         p.tick("mb distance")
+
+        if self.taylor_degrees > 0:
+            x_prime = x.clone()
+            y_prime = y.clone()
+            for _ in range(self.taylor_degrees):
+                x_prime = x_prime.diff(dim=-1)
+                y_prime = y_prime.diff(dim=-1)
+                distance += self.distance(x_prime, y_prime)
+            p.tick("taylor distance")
 
         if self.pqmf is not None:  # FULL BAND RECOMPOSITION
             x = self.pqmf.inverse(x)
