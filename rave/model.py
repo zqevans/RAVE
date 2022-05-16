@@ -1,7 +1,7 @@
 import sys
 import torch
 import torch.nn as nn
-import torch.nn.utils.weight_norm as wn
+import torch.nn.utils.weight_norm as weight_norm
 import torchaudio
 import numpy as np
 import pytorch_lightning as pl
@@ -12,6 +12,7 @@ from .pqmf import CachedPQMF as PQMF
 from sklearn.decomposition import PCA
 from einops import rearrange
 import wandb
+from perceiver_pytorch import Perceiver
 
 from time import time
 
@@ -70,7 +71,7 @@ class ResidualStack(nn.Module):
             # RESIDUAL BLOCK
             seq = [nn.LeakyReLU(.2)]
             seq.append(
-                wn(
+                weight_norm(
                     cc.Conv1d(
                         dim,
                         dim,
@@ -86,7 +87,7 @@ class ResidualStack(nn.Module):
 
             seq.append(nn.LeakyReLU(.2))
             seq.append(
-                wn(
+                weight_norm(
                     cc.Conv1d(
                         dim,
                         dim,
@@ -121,7 +122,7 @@ class UpsampleLayer(nn.Module):
         net = [nn.LeakyReLU(.2)]
         if ratio > 1:
             net.append(
-                wn(
+                weight_norm(
                     cc.ConvTranspose1d(
                         in_dim,
                         out_dim,
@@ -132,7 +133,7 @@ class UpsampleLayer(nn.Module):
                     )))
         else:
             net.append(
-                wn(
+                weight_norm(
                     cc.Conv1d(
                         in_dim,
                         out_dim,
@@ -207,7 +208,7 @@ class Generator(nn.Module):
                  bias=False):
         super().__init__()
         net = [
-            wn(
+            weight_norm(
                 cc.Conv1d(
                     latent_size,
                     2**len(ratios) * capacity,
@@ -217,7 +218,7 @@ class Generator(nn.Module):
                 ))
         ]
 
-        for i, r in enumerate(ratios):
+        for i, ratio in enumerate(ratios):
             in_dim = 2**(len(ratios) - i) * capacity
             out_dim = 2**(len(ratios) - i - 1) * capacity
 
@@ -225,7 +226,7 @@ class Generator(nn.Module):
                 UpsampleLayer(
                     in_dim,
                     out_dim,
-                    r,
+                    ratio,
                     padding_mode,
                     cumulative_delay=net[-1].cumulative_delay,
                 ))
@@ -239,7 +240,7 @@ class Generator(nn.Module):
 
         self.net = cc.CachedSequential(*net)
 
-        wave_gen = wn(
+        wave_gen = weight_norm(
             cc.Conv1d(
                 out_dim,
                 data_size,
@@ -248,7 +249,7 @@ class Generator(nn.Module):
                 bias=bias,
             ))
 
-        loud_gen = wn(
+        loud_gen = weight_norm(
             cc.Conv1d(
                 out_dim,
                 1,
@@ -356,19 +357,85 @@ class Encoder(nn.Module):
         return torch.split(z, z.shape[1] // 2, 1)
 
 
+class PerceiverEncoder(nn.Module):
+
+    def __init__(self,
+                 data_size,
+                 capacity,
+                 latent_size,
+                 ratios,
+                 padding_mode,
+                 bias=False):
+        super().__init__()
+
+        self.net = Perceiver(
+            # number of channels for each token of the input
+            input_channels=data_size,
+
+            # number of axis for input data (1 for audio, 2 for images, 3 for video)
+            input_axis=1,
+
+            # number of freq bands, with original value (2 * K + 1)
+            num_freq_bands=128,
+
+            # maximum frequency, hyperparameter depending on how fine the data is
+            max_freq=1000.,
+
+            # depth of net. The shape of the final attention mechanism will be:
+            # depth * (cross attention -> self_per_cross_attn * self attention)
+            depth=10,
+
+            # number of latents, or induced set points, or centroids. different papers giving it different names
+            num_latents=capacity,
+
+            # latent dimension
+            latent_dim=512,
+
+            # number of heads for cross attention. paper said 1
+            cross_heads=1,
+
+            # number of heads for latent self attention, 8
+            latent_heads=8,
+
+            # number of dimensions per cross attention head
+            cross_dim_head=64,
+
+            # number of dimensions per latent self attention head
+            latent_dim_head=64,
+
+            # output number of classes
+            num_classes=latent_size,
+            attn_dropout=0.,
+            ff_dropout=0.,
+
+            # whether to weight tie layers (optional, as indicated in the diagram)
+            weight_tie_layers=True,
+
+            # whether to auto-fourier encode the data, using the input_axis given. defaults to True, but can be turned off if you are fourier encoding the data yourself
+            fourier_encode_data=True,
+
+            # number of self attention blocks per cross attention
+            self_per_cross_attn=2)
+
+    def forward(self, x):
+        z = self.net(x)
+        return torch.split(z, z.shape[1] // 2, 1)
+
+
 class Discriminator(nn.Module):
 
     def __init__(self, in_size, capacity, multiplier, n_layers):
         super().__init__()
 
         net = [
-            wn(cc.Conv1d(in_size, capacity, 15, padding=cc.get_padding(15)))
+            weight_norm(
+                cc.Conv1d(in_size, capacity, 15, padding=cc.get_padding(15)))
         ]
         net.append(nn.LeakyReLU(.2))
 
         for i in range(n_layers):
             net.append(
-                wn(
+                weight_norm(
                     cc.Conv1d(
                         capacity * multiplier**i,
                         min(1024, capacity * multiplier**(i + 1)),
@@ -380,7 +447,7 @@ class Discriminator(nn.Module):
             net.append(nn.LeakyReLU(.2))
 
         net.append(
-            wn(
+            weight_norm(
                 cc.Conv1d(
                     min(1024, capacity * multiplier**(i + 1)),
                     min(1024, capacity * multiplier**(i + 1)),
@@ -389,7 +456,8 @@ class Discriminator(nn.Module):
                 )))
         net.append(nn.LeakyReLU(.2))
         net.append(
-            wn(cc.Conv1d(min(1024, capacity * multiplier**(i + 1)), 1, 1)))
+            weight_norm(
+                cc.Conv1d(min(1024, capacity * multiplier**(i + 1)), 1, 1)))
         self.net = nn.ModuleList(net)
 
     def forward(self, x):
@@ -438,8 +506,7 @@ class RAVE(pl.LightningModule):
                  max_kl=5e-1,
                  cropped_latent_size=0,
                  feature_match=True,
-                 sr=24000,
-                 taylor_degrees=0):
+                 sr=24000):
         super().__init__()
         self.save_hyperparameters()
 
@@ -452,7 +519,7 @@ class RAVE(pl.LightningModule):
 
         encoder_out_size = cropped_latent_size if cropped_latent_size else latent_size
 
-        self.encoder = Encoder(
+        self.encoder = PerceiverEncoder(
             data_size,
             capacity,
             encoder_out_size,
@@ -501,8 +568,6 @@ class RAVE(pl.LightningModule):
         self.cropped_latent_size = cropped_latent_size
 
         self.feature_match = feature_match
-
-        self.taylor_degrees = taylor_degrees
 
         self.register_buffer("saved_step", torch.tensor(0))
 
@@ -598,15 +663,6 @@ class RAVE(pl.LightningModule):
         # DISTANCE BETWEEN INPUT AND OUTPUT
         distance = self.distance(x, y)
         p.tick("mb distance")
-
-        if self.taylor_degrees > 0:
-            x_prime = x.clone()
-            y_prime = y.clone()
-            for _ in range(self.taylor_degrees):
-                x_prime = x_prime.diff(dim=-1)
-                y_prime = y_prime.diff(dim=-1)
-                distance += self.distance(x_prime, y_prime)
-            p.tick("taylor distance")
 
         if self.pqmf is not None:  # FULL BAND RECOMPOSITION
             x = self.pqmf.inverse(x)

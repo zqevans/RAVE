@@ -3,6 +3,7 @@ import shutil
 
 
 class Print:
+
     def __init__(self):
         self.msg = ""
 
@@ -91,12 +92,6 @@ if __name__ == "__main__":
 
     p(cmd)
     p("")
-
-    p("You can follow the training using tensorboard")
-    p("")
-    p("tensorboard --logdir . --bind_all")
-    p("")
-    p("Once the training has reached a satisfactory state, kill it (ctrl + C)")
 
     subsection("train prior")
 

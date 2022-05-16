@@ -23,7 +23,6 @@ if __name__ == "__main__":
         CAPACITY = 64
         LATENT_SIZE = 128
         RATIOS = [4, 4, 4, 2]
-        TAYLOR_DEGREES = 0
         BIAS = True
         NO_LATENCY = False
 
@@ -79,8 +78,7 @@ if __name__ == "__main__":
                  min_kl=args.MIN_KL,
                  max_kl=args.MAX_KL,
                  cropped_latent_size=args.CROPPED_LATENT_SIZE,
-                 feature_match=args.FEATURE_MATCH,
-                 taylor_degrees=args.TAYLOR_DEGREES)
+                 feature_match=args.FEATURE_MATCH)
 
     x = torch.zeros(args.BATCH, 2**14)
     model.validation_step(x, 0)
