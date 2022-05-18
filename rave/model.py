@@ -519,7 +519,7 @@ class RAVE(pl.LightningModule):
 
         encoder_out_size = cropped_latent_size if cropped_latent_size else latent_size
 
-        self.encoder = PerceiverEncoder(
+        self.encoder = Encoder(
             data_size,
             capacity,
             encoder_out_size,

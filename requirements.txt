@@ -12,6 +12,7 @@ soundfile==0.10.3.post1
 termcolor==1.1.0
 torch
 GPUtil==1.4.0
+vector_quantize_pytorth
 wandb==0.12.7
 git+https://github.com/caillonantoine/cached_conv.git#egg=cached_conv
 git+https://github.com/caillonantoine/UDLS.git#egg=udls
