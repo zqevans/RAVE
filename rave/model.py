@@ -599,15 +599,6 @@ class RAVE(pl.LightningModule):
         distance = self.distance(x, y)
         p.tick("mb distance")
 
-        if self.taylor_degrees > 0:
-            x_prime = x.clone()
-            y_prime = y.clone()
-            for _ in range(self.taylor_degrees):
-                x_prime = x_prime.diff(dim=-1)
-                y_prime = y_prime.diff(dim=-1)
-                distance += self.distance(x_prime, y_prime)
-            p.tick("taylor distance")
-
         if self.pqmf is not None:  # FULL BAND RECOMPOSITION
             x = self.pqmf.inverse(x)
             y = self.pqmf.inverse(y)
