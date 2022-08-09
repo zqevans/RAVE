@@ -12,7 +12,7 @@ setup(
         'matplotlib==3.5.1', 
         'numpy', 
         #'pytorch-lightning',
-        'prefigure',
+        'prefigure>=0.0.5',
         'protobuf==3.20.*', 
         'scikit_learn==1.0.2', 
         'scipy==1.7.3', 
