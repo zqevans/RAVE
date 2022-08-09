@@ -37,7 +37,7 @@ if __name__ == "__main__":
     device = accelerator.device
     print('Using device:', device, flush=True)
 
-    assert args.name is not None
+    assert args.name != ''
     model = RAVE(data_size=args.data_size,
                  capacity=args.capacity,
                  latent_size=args.latent_size,
@@ -150,6 +150,7 @@ if __name__ == "__main__":
                 step += 1
             epoch += 1
     except RuntimeError as err:
+            # Error reporting / detect faulty GPUs on AWS cluster
             import requests
             import datetime
             ts = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
