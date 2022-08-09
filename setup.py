@@ -22,6 +22,6 @@ setup(
         'GPUtil==1.4.0', 
         'wandb==0.12.7', 
         'cached_conv @ git+https://github.com/caillonantoine/cached_conv.git#egg=cached_conv', 
-        'UDLS @ git+https://github.com/caillonantoine/UDLS.git#egg=udls'],
+        'udls @ git+https://github.com/caillonantoine/UDLS.git#egg=udls'],
     # ...
 )
