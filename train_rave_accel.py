@@ -7,7 +7,9 @@ from rave.core import random_phase_mangle, EMAModelCheckPoint
 from rave.core import search_for_run
 
 from udls import SimpleDataset, simple_audio_preprocess
-from effortless_config import Config
+#from effortless_config import Config
+from prefigure.prefigure import get_all_args, push_wandb_config
+
 from os import environ, path
 import numpy as np
 from torch import multiprocessing as mp
@@ -18,50 +20,8 @@ import wandb
 
 if __name__ == "__main__":
 
-    class args(Config):
-        DATA_SIZE = 16
-        CAPACITY = 32
-        LATENT_SIZE = 128
-        RATIOS = [4, 4, 2, 2, 2]
-        TAYLOR_DEGREES = 0
-        BIAS = True
-        NO_LATENCY = False
 
-        MIN_KL = 1e-4
-        MAX_KL = 1e-1
-        CROPPED_LATENT_SIZE = 0
-        FEATURE_MATCH = True
-
-        LOUD_STRIDE = 1
-
-        USE_NOISE = True
-        NOISE_RATIOS = [4, 4, 4]
-        NOISE_BANDS = 5
-
-        D_CAPACITY = 16
-        D_MULTIPLIER = 4
-        D_N_LAYERS = 4
-
-        WARMUP = 1000000
-        MODE = "hinge"
-        CKPT = None
-
-        PREPROCESSED = None
-        WAV = None
-        SR = 48000
-        N_SIGNAL = 65536
-        MAX_STEPS = 2000000
-
-        BATCH = 8
-
-        NAME = None
-        SEED = 42
-        START_METHOD="forkserver"
-
-        VAL_EVERY = 10000
-        CHECKPOINT_EVERY = 25000
-
-    args.parse_args()
+    args = get_all_args()
 
     torch.manual_seed(args.SEED)
 
