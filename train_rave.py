@@ -20,9 +20,9 @@ if __name__ == "__main__":
 
     class args(Config):
         DATA_SIZE = 16
-        CAPACITY = 64
+        CAPACITY = 32
         LATENT_SIZE = 128
-        RATIOS = [4, 4, 4, 2]
+        RATIOS = [4, 4, 2, 2, 2]
         TAYLOR_DEGREES = 0
         BIAS = True
         NO_LATENCY = False
@@ -88,6 +88,7 @@ if __name__ == "__main__":
     dataset = SimpleDataset(
         args.PREPROCESSED,
         args.WAV,
+        extension="*.wav,*.aif,*.flac",
         preprocess_function=simple_audio_preprocess(args.SR,
                                                     2 * args.N_SIGNAL),
         split_set="full",
@@ -114,11 +115,11 @@ if __name__ == "__main__":
     val = DataLoader(val, args.BATCH, False, num_workers=8)
 
     # CHECKPOINT CALLBACKS
-    validation_checkpoint = pl.callbacks.ModelCheckpoint(
-        monitor="validation",
-        filename="best",
-    )
-    last_checkpoint = pl.callbacks.ModelCheckpoint(filename="last")
+    # validation_checkpoint = pl.callbacks.ModelCheckpoint(
+    #     monitor="validation",
+    #     filename="best",
+    # )
+    last_checkpoint = pl.callbacks.ModelCheckpoint(every_n_train_steps=100000)
 
     val_check = {}
     if len(train) >= 10000:
@@ -133,8 +134,8 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         logger=wandb_logger,
         gpus=args.N_GPUS,
-        #strategy='ddp',
-        callbacks=[validation_checkpoint, last_checkpoint],
+        strategy='ddp',
+        callbacks=[last_checkpoint],
         resume_from_checkpoint=search_for_run(args.CKPT),
         max_epochs=100000,
         max_steps=args.MAX_STEPS,

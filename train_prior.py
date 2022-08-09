@@ -67,9 +67,12 @@ model = Model(
 
 args.N_SIGNAL = max(args.N_SIGNAL, get_n_signal(args, model.synth))
 
+print(f"Receptive field: {args.N_SIGNAL} samples ({args.N_SIGNAL / model.sr} seconds)")
+
 dataset = SimpleDataset(
     args.PREPROCESSED,
     args.WAV,
+    extension="*.wav,*.aif,*.flac",
     preprocess_function=simple_audio_preprocess(model.sr, args.N_SIGNAL),
     split_set="full",
     transforms=lambda x: x.reshape(1, -1),
@@ -90,13 +93,13 @@ validation_checkpoint = pl.callbacks.ModelCheckpoint(
 last_checkpoint = pl.callbacks.ModelCheckpoint(filename="last")
 
 wandb_logger = pl.loggers.WandbLogger(project=args.NAME)
-wandb_logger.watch(model)
+#wandb_logger.watch(model)
 
 val_check = {}
-if len(train) >= 10000:
-    val_check["val_check_interval"] = 10000
+if len(train) >= 5000:
+    val_check["val_check_interval"] = 5000
 else:
-    nepoch = 10000 // len(train)
+    nepoch = 5000 // len(train)
     val_check["check_val_every_n_epoch"] = nepoch
 
 trainer = pl.Trainer(

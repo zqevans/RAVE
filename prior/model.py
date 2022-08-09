@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+import sys
+import torchaudio
+import wandb
 from tqdm import tqdm
 
 from .residual_block import ResidualBlock
@@ -156,16 +159,23 @@ class Model(pl.LightningModule):
         return batch
 
     def validation_epoch_end(self, out):
-        x = torch.randn_like(self.encode(out[0]))
+        x = torch.randn_like(self.encode(out[0][:16]))
         x = self.quantized_normal.encode(self.diagonal_shift(x))
         z = self.generate(x)
         z = self.diagonal_shift.inverse(self.quantized_normal.decode(z))
 
-        y = self.decode(z)
-        self.logger.experiment.add_audio(
-            "generation",
-            y.reshape(-1),
-            self.val_idx,
-            self.synth.sampling_rate.item(),
-        )
+        y = self.decode(z).reshape(-1).detach().cpu().unsqueeze(0)
+
+        try:
+            log_dict = {}
+            step = self.global_step
+            filename = f'generation_{step}.wav'
+            torchaudio.save(filename, y, self.synth.sampling_rate.item())
+            log_dict[f'generation'] = wandb.Audio(filename,
+                                            sample_rate=self.sr,
+                                            caption=f'generation')
+            self.logger.experiment.log(log_dict, step=step)
+        except Exception as e:
+            print(f'{type(e).__name__}: {e}', file=sys.stderr)
+
         self.val_idx += 1
