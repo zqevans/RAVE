@@ -37,7 +37,7 @@ if __name__ == "__main__":
     device = accelerator.device
     print('Using device:', device, flush=True)
 
-    assert args.name != ''
+    assert args.name is not None
     model = RAVE(data_size=args.data_size,
                  capacity=args.capacity,
                  latent_size=args.latent_size,
