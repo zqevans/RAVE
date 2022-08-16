@@ -8,8 +8,10 @@ from rave.model_accel import RAVE, Profiler
 from rave.core import random_phase_mangle, EMAModelCheckPoint
 from rave.core import search_for_run
 
-from udls import SimpleDataset, simple_audio_preprocess
+#from udls import SimpleDataset, simple_audio_preprocess
 #from effortless_config import Config
+#from rave.audiodata import AudioDataset
+from aeiou.datasets import AudioDataset
 from prefigure.prefigure import get_all_args, push_wandb_config
 
 from os import environ, path
@@ -24,7 +26,6 @@ if __name__ == "__main__":
 
 
     args = get_all_args()
-    print("args = ",args)
 
     torch.manual_seed(args.seed)
 
@@ -37,7 +38,12 @@ if __name__ == "__main__":
     device = accelerator.device
     print('Using device:', device, flush=True)
 
+    # special parsing for arg lists (TODO: could add this functionality to prefigure later):
+    args.ratios = eval(''.join(args.ratios))
+    args.transforms = eval(args.transforms)
+    print("args = ",args)
     assert args.name is not None
+
     model = RAVE(data_size=args.data_size,
                  capacity=args.capacity,
                  latent_size=args.latent_size,
@@ -62,23 +68,17 @@ if __name__ == "__main__":
 
     gen_opt, dis_opt = model.configure_optimizers()
 
-    dataset = SimpleDataset(
-        args.preprocessed,
-        args.wav,
-        extension="*.wav,*.aif,*.flac",
-        preprocess_function=simple_audio_preprocess(args.sr,
-                                                    2 * args.n_signal),
-        split_set="full",
-        transforms=Compose([
-            RandomCrop(args.n_signal),
-            # RandomApply(
-            #     lambda x: random_phase_mangle(x, 20, 2000, .99, args.sr),
-            #     p=.8,
-            # ),
-            Dequantize(16),
-            lambda x: x.astype(np.float32),
-        ]),
-    )
+    if True: # new aeiou dataset class
+        dataset = AudioDataset(args.wav, sample_size=args.n_signal, sample_rate=args.sr, augs=args.augs, load_frac=args.load_frac)
+    else:  # antoine's old class that called preprocessing for you.
+        dataset = SimpleDataset(
+            args.preprocessed,
+            args.wav,
+            extension="*.wav,*.aif,*.flac",
+            preprocess_function=simple_audio_preprocess(args.sr, 2 * args.n_signal),
+            split_set="full",
+            transforms=Compose( args.transforms ),
+        ) 
 
     train = DataLoader(dataset, args.batch, True, drop_last=True, num_workers=8)
     
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     use_wandb = accelerator.is_main_process and args.name
     if use_wandb:
         import wandb
-        config = dict(args)
+        config = vars(args) # dict(args)
         #config['params'] = utils.n_params(model)
         wandb.init(project=args.name, config=config, save_code=True)
 
@@ -104,6 +104,8 @@ if __name__ == "__main__":
     try:
         while step < args.max_steps:
             for batch in tqdm(train, disable=not accelerator.is_main_process):
+                #print(f"\nbatch.shape = {batch.shape}",flush=True)
+                #print(f"batch = {batch}",flush=True)
                 p = Profiler()
                 model_unwrap = accelerator.unwrap_model(model)
                 p.tick("unwrap model")

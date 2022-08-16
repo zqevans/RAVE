@@ -1,3 +1,4 @@
+aeiou
 accelerate
 tqdm==4.62.3
 effortless-config==0.7.0

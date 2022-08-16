@@ -4,6 +4,7 @@ setup(
     name="RAVE",
     version="1.0",
     install_requires=[
+        'aeiou',
         'accelerate', 
         'tqdm==4.62.3', 
         'effortless-config==0.7.0', 
