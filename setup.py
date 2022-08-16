@@ -4,6 +4,7 @@ setup(
     name="RAVE",
     version="1.0",
     install_requires=[
+        'aeiou',
         'accelerate', 
         'tqdm==4.62.3', 
         'effortless-config==0.7.0', 
@@ -12,7 +13,7 @@ setup(
         'matplotlib==3.5.1', 
         'numpy', 
         #'pytorch-lightning',
-        'prefigure>=0.0.5',
+        'prefigure>=0.0.6',
         'protobuf==3.20.*', 
         'scikit_learn==1.0.2', 
         'scipy==1.7.3', 
